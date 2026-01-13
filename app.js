@@ -1,11 +1,13 @@
 // ==================== Firebase Imports ====================
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
 import { 
   getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, 
   GoogleAuthProvider, signInWithPopup, onAuthStateChanged 
 } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 import { 
-  getFirestore, collection, addDoc, getDocs, query, orderBy, doc, getDoc, updateDoc, deleteDoc, Timestamp 
+  getFirestore, collection, addDoc, getDocs, query, orderBy,
+  doc, getDoc, setDoc, updateDoc, deleteDoc, Timestamp 
 } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
 // ==================== Cloudinary ====================
@@ -98,13 +100,27 @@ authForm.addEventListener("submit", async (e) => {
   const name = document.getElementById("name").value;
 
   try {
-    if(isSignup){
-      const userCredential = await createUserWithEmailAndPassword(auth,email,password);
-      await updateDoc(doc(db,"users",userCredential.user.uid), { name, bookmarks: [] });
-      Swal.fire({ icon: 'success', title: 'Account created!', timer:1500, showConfirmButton:false });
-      isSignup=false;
-      authForm.reset();
-    } else{
+  if(isSignup){
+  const userCredential = await createUserWithEmailAndPassword(auth,email,password);
+
+  await setDoc(doc(db,"users",userCredential.user.uid), {
+    name,
+    email,
+    bookmarks: [],
+    createdAt: Timestamp.now()
+  });
+
+  Swal.fire({
+    icon: 'success',
+    title: 'Account created!',
+    timer:1500,
+    showConfirmButton:false
+  });
+
+  isSignup = false;
+  authForm.reset();
+}
+ else{
       await signInWithEmailAndPassword(auth,email,password);
       Swal.fire({ icon: 'success', title: 'Login Successful!', timer:1500, showConfirmButton:false });
     }
@@ -227,7 +243,8 @@ async function loadBlogs(){
     const isBookmarked = bookmarks.includes(blog.id);
     blogList.innerHTML += `
       <div class="card mb-3">
-        <img src="${blog.coverImage}" class="card-img-top" alt="blog">
+        <img src="${blog.coverImage || 'https://via.placeholder.com/600x300'}" class="card-img-top">
+
         <div class="card-body">
           <h5 class="card-title">${blog.title}</h5>
           <p class="card-text">${blog.content.substring(0,100)}...</p>
@@ -290,6 +307,7 @@ likeBtn.addEventListener("click", async () => {
 
 // ==================== Toggle Bookmark ====================
 window.toggleBookmark = async (id) => {
+  
   if(bookmarks.includes(id)){
     bookmarks = bookmarks.filter(bid => bid !== id);
     Swal.fire({ icon:'success', title:'Removed from bookmarks', timer:1000, showConfirmButton:false });
@@ -299,7 +317,12 @@ window.toggleBookmark = async (id) => {
   }
 
   // Save bookmarks in Firestore
-  await updateDoc(doc(db,"users",currentUser.uid), { bookmarks });
+ await setDoc(
+  doc(db,"users",currentUser.uid),
+  { bookmarks },
+  { merge: true }
+);
+
   loadBlogs();
 };
 
